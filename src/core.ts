@@ -98,45 +98,46 @@ function getSelnRange(cm: CodeMirror.Editor, settings: PluginSettings) {
   return { selectedText, replaceRange };
 }
 
+const isUrl = (text: string, settingsRegex: string): boolean => {
+  if (text === "") return false;
+  try {
+    // throw TypeError: Invalid URL if not valid
+    new URL(text);
+    return true;
+  } catch (error) {
+    // settings.regex: fallback test allows url without protocol (http,file...)
+    return testFilePath(text) || new RegExp(settingsRegex).test(text);
+  }
+};
+
+const isImgEmbed = (text: string, listForImgEmbed: string): boolean => {
+  const rules = listForImgEmbed
+    .split("\n")
+    .filter((v) => v.length > 0)
+    .map((v) => new RegExp(v));
+  for (const reg of rules) {
+    if (reg.test(text)) return true;
+  }
+  return false;
+};
+
 function getReplaceText(
   clipboardText: string,
   selectedText: string,
   settings: PluginSettings
 ): string | null {
-  const isUrl = (text: string): boolean => {
-    if (text === "") return false;
-    try {
-      // throw TypeError: Invalid URL if not valid
-      new URL(text);
-      return true;
-    } catch (error) {
-      // settings.regex: fallback test allows url without protocol (http,file...)
-      return testFilePath(text) || new RegExp(settings.regex).test(text);
-    }
-  };
-  const isImgEmbed = (text: string): boolean => {
-    const rules = settings.listForImgEmbed
-      .split("\n")
-      .filter((v) => v.length > 0)
-      .map((v) => new RegExp(v));
-    for (const reg of rules) {
-      if (reg.test(text)) return true;
-    }
-    return false;
-  };
-
   let linktext: string;
   let url: string;
 
-  if (isUrl(clipboardText)) {
+  if (isUrl(clipboardText, settings.regex)) {
     linktext = selectedText;
     url = clipboardText;
-  } else if (isUrl(selectedText)) {
+  } else if (isUrl(selectedText, settings.regex)) {
     linktext = clipboardText;
     url = selectedText;
   } else return null; // if neither of two is an URL, the following code would be skipped.
 
-  const imgEmbedMark = isImgEmbed(clipboardText) ? "!" : "";
+  const imgEmbedMark = isImgEmbed(clipboardText, settings.listForImgEmbed) ? "!" : "";
 
   url = processUrl(url);
 
